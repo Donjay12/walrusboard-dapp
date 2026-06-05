@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WalrusBoard — Decentralized Social on Sui</title>
-    <!-- Loaded official standard libraries to track the active extensions -->
+    <!-- Official Mysten Labs SDK Library -->
     <script src="https://unpkg.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="preconnect" href="https://googleapis.com">
+    <link href="https://googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
     <style>
       :root {
         --bg: #0a0c0f;
@@ -214,7 +214,7 @@
             FUNCTION_NAME: "create_post"
         };
 
-        let chosenWalletInstance = null;
+        let currentWalletFeatureInstance = null;
         let walletAccount = null;
         let selectedFile = null;
 
@@ -224,52 +224,50 @@
 
         document.getElementById('media-upload').addEventListener('change', (e) => {
             if(e.target.files.length > 0) {
-                selectedFile = e.target.files[0];
+                selectedFile = e.target.files;
                 document.getElementById('status-log').innerText = `System: Asset - ${selectedFile.name}`;
             }
         });
 
-        // FIXED: Real Wallet Standard discovery loop to find Slush
-        function locateStandardWallet() {
+        // ADVANCED EVENT-DRIVEN DETECTION FOR EXTENSIONS
+        function scanForSuiStandardWallets() {
+            // Check traditional endpoints
             if (window.suiWallet || window.slushWallet) {
                 return window.suiWallet || window.slushWallet;
             }
-            // Scans browser's dynamic registration keys
-            if (window.__suiWallets && window.__suiWallets.get) {
-                const standardList = window.__suiWallets.get();
-                if(standardList && standardList.length > 0) {
-                    return standardList[0]; 
+            // Fallback scan loop for the modern dynamic registry list
+            if (window.__suiWallets && typeof window.__suiWallets.get === 'function') {
+                const registered = window.__suiWallets.get();
+                if (registered && registered.length > 0) {
+                    // Grab the first registered extension (Slush)
+                    return registered[0];
                 }
             }
             return null;
         }
 
+        // Listen live for the register event triggered by Slush loading
+        window.addEventListener('sui-wallet-standard:register-wallet', () => {
+            console.log("Sui Wallet Standard Event Captured.");
+            document.getElementById('status-log').innerText = "System: Slush Detected!";
+        });
+
         document.getElementById('btn-connect').addEventListener('click', async () => {
-            chosenWalletInstance = locateStandardWallet();
+            currentWalletFeatureInstance = scanForSuiStandardWallets();
             
-            if (chosenWalletInstance) {
+            if (currentWalletFeatureInstance) {
                 try {
-                    document.getElementById('status-log').innerText = "System: Initializing Handshake...";
+                    document.getElementById('status-log').innerText = "System: Triggering Pop-up Prompt...";
                     
-                    // Route permissions using standardized interface calls
-                    let features = chosenWalletInstance.features || chosenWalletInstance;
                     let accounts = [];
-                    
-                    if (chosenWalletInstance.connect) {
-                        const conn = await chosenWalletInstance.connect();
-                        accounts = conn.accounts || conn;
-                    } else if (chosenWalletInstance.requestPermissions) {
-                        await chosenWalletInstance.requestPermissions();
-                        accounts = await chosenWalletInstance.getAccounts();
+                    // Execute standard connection handshake method definition loops
+                    if (typeof currentWalletFeatureInstance.connect === 'function') {
+                        const connectionResult = await currentWalletFeatureInstance.connect();
+                        accounts = connectionResult.accounts || connectionResult;
+                    } else if (typeof currentWalletFeatureInstance.requestPermissions === 'function') {
+                        await currentWalletFeatureInstance.requestPermissions();
+                        accounts = await currentWalletFeatureInstance.getAccounts();
                     }
 
-                    // Extract text string formats safely
-                    const rawAccount = accounts[0];
-                    walletAccount = rawAccount?.address || rawAccount;
-                    
-                    if(!walletAccount) throw new Error("Could not index account values");
-
-                    document.getElementById('wallet-addr').innerText = `${walletAccount.slice(0,6)}...${walletAccount.slice(-4)}`;
-                    document.getElementById('btn-submit-post').removeAttribute('disabled');
-                    document.getElementById('status-log').innerText = "System: Slush Connected";
-                    
+                    // Normalize data matching string profiles
+                    const targetedDataArray = Array.isArray(accounts) ? accounts[0] : accounts;
