@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WalrusBoard — Decentralized Social on Sui</title>
-    <!-- Include Sui Wallet Standard Adapter Framework via unpkg -->
+    <!-- Include official Mysten Labs Sui Wallet Standard Adapter Framework -->
     <script src="https://unpkg.com"></script>
     <link rel="preconnect" href="https://googleapis.com">
     <link href="https://googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
@@ -205,12 +205,11 @@
     </div>
 
     <script>
-        // Config Map Orchestrator binding backend parameters directly to UI pipelines
         const CONFIG = {
             TATUM_RPC: "https://tatum.io", 
             TATUM_KEY: "t-6a228ba6cdca2ce164fe3516-29b78c633b8c45008f38baff", 
             WALRUS_PUBLISHER: "https://walrus.space",
-            PACKAGE_ID: "0x53a152fb6a19280d9db81d6f47f20108398e6c7104ea20299837c7bd9676ec4f", // Testnet baseline contract mapping
+            PACKAGE_ID: "0x53a152fb6a19280d9db81d6f47f20108398e6c7104ea20299837c7bd9676ec4f", 
             MODULE_NAME: "social",
             FUNCTION_NAME: "create_post"
         };
@@ -229,17 +228,30 @@
             }
         });
 
-        // Interactive wallet connector routing queries through Tatum Node APIs
+        // Resolve common standard wallet extensions injection parameters dynamically
+        function getWalletProvider() {
+            return window.suiWallet || window.slushWallet || (window.sui && window.sui.wallet);
+        }
+
         document.getElementById('btn-connect').addEventListener('click', async () => {
-            if (window.suiWallet) {
+            const activeWallet = getWalletProvider();
+            
+            if (activeWallet) {
                 try {
-                    await window.suiWallet.requestPermissions();
-                    const currentAccounts = await window.suiWallet.getAccounts();
-                    walletAccount = currentAccounts[0];
+                    document.getElementById('status-log').innerText = "System: Launching Connection Frame...";
+                    await activeWallet.requestPermissions();
+                    const currentAccounts = await activeWallet.getAccounts();
+                    
+                    // Safely index strings matching Slush data schemas
+                    if (currentAccounts && currentAccounts.length > 0) {
+                        walletAccount = currentAccounts[0].address || currentAccounts[0];
+                    } else {
+                        throw new Error("No active accounts found in wallet provider");
+                    }
                     
                     document.getElementById('wallet-addr').innerText = `${walletAccount.slice(0,6)}...${walletAccount.slice(-4)}`;
                     document.getElementById('btn-submit-post').removeAttribute('disabled');
-                    document.getElementById('status-log').innerText = "System: Wallet Connected";
+                    document.getElementById('status-log').innerText = "System: Wallet Active";
                     
                     // Fetch real balance metrics via Tatum RPC Node infrastructure maps
                     const res = await fetch(CONFIG.TATUM_RPC, {
@@ -248,21 +260,9 @@
                         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "suix_getBalance", params: [walletAccount] })
                     });
                     const balData = await res.json();
-                    const suiBal = (balData.result.totalBalance / 1000000000).toFixed(2);
-                    document.getElementById('wallet-bal').innerHTML = `${suiBal} <span>SUI</span>`;
+                    if (balData.result && balData.result.totalBalance) {
+                        const suiBal = (balData.result.totalBalance / 1000000000).toFixed(2);
+                        document.getElementById('wallet-bal').innerHTML = `${suiBal} <span>SUI</span>`;
+                    }
                 } catch (err) {
-                    document.getElementById('status-log').innerText = `System: Connection Error`;
-                }
-            } else {
-                alert("Sui Wallet extension not detected! Please open inside an extension-enabled browser.");
-            }
-        });
-
-        // Combined data dispatch handler pushing binaries to Walrus and records via Tatum
-        document.getElementById('btn-submit-post').addEventListener('click', async () => {
-            const textContent = document.getElementById('post-text').value;
-            if (!textContent && !selectedFile) return;
-
-            try {
-                let generatedBlobId = "0x0000000000000000000000000000000000000000000000000000000000000000";
-                
+                    document.getElementById('status-log').innerText = `System: Connection Aborted`;
