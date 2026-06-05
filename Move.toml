@@ -1,0 +1,9 @@
+[package]
+name = "walrus_board"
+version = "0.0.1"
+
+[dependencies]
+Sui = { git = "https://github.com", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
+
+[addresses]
+walrus_board = "0x0"
