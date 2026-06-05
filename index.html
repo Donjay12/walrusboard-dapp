@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WalrusBoard — Decentralized Social on Sui</title>
-    <!-- Include official Mysten Labs Sui Wallet Standard Adapter Framework -->
+    <!-- Loaded official standard libraries to track the active extensions -->
     <script src="https://unpkg.com"></script>
-    <link rel="preconnect" href="https://googleapis.com">
-    <link href="https://googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://googleapis.com" rel="stylesheet">
     <style>
       :root {
         --bg: #0a0c0f;
@@ -214,6 +214,7 @@
             FUNCTION_NAME: "create_post"
         };
 
+        let chosenWalletInstance = null;
         let walletAccount = null;
         let selectedFile = null;
 
@@ -228,41 +229,47 @@
             }
         });
 
-        // Resolve common standard wallet extensions injection parameters dynamically
-        function getWalletProvider() {
-            return window.suiWallet || window.slushWallet || (window.sui && window.sui.wallet);
+        // FIXED: Real Wallet Standard discovery loop to find Slush
+        function locateStandardWallet() {
+            if (window.suiWallet || window.slushWallet) {
+                return window.suiWallet || window.slushWallet;
+            }
+            // Scans browser's dynamic registration keys
+            if (window.__suiWallets && window.__suiWallets.get) {
+                const standardList = window.__suiWallets.get();
+                if(standardList && standardList.length > 0) {
+                    return standardList[0]; 
+                }
+            }
+            return null;
         }
 
         document.getElementById('btn-connect').addEventListener('click', async () => {
-            const activeWallet = getWalletProvider();
+            chosenWalletInstance = locateStandardWallet();
             
-            if (activeWallet) {
+            if (chosenWalletInstance) {
                 try {
-                    document.getElementById('status-log').innerText = "System: Launching Connection Frame...";
-                    await activeWallet.requestPermissions();
-                    const currentAccounts = await activeWallet.getAccounts();
+                    document.getElementById('status-log').innerText = "System: Initializing Handshake...";
                     
-                    // Safely index strings matching Slush data schemas
-                    if (currentAccounts && currentAccounts.length > 0) {
-                        walletAccount = currentAccounts[0].address || currentAccounts[0];
-                    } else {
-                        throw new Error("No active accounts found in wallet provider");
+                    // Route permissions using standardized interface calls
+                    let features = chosenWalletInstance.features || chosenWalletInstance;
+                    let accounts = [];
+                    
+                    if (chosenWalletInstance.connect) {
+                        const conn = await chosenWalletInstance.connect();
+                        accounts = conn.accounts || conn;
+                    } else if (chosenWalletInstance.requestPermissions) {
+                        await chosenWalletInstance.requestPermissions();
+                        accounts = await chosenWalletInstance.getAccounts();
                     }
+
+                    // Extract text string formats safely
+                    const rawAccount = accounts[0];
+                    walletAccount = rawAccount?.address || rawAccount;
                     
+                    if(!walletAccount) throw new Error("Could not index account values");
+
                     document.getElementById('wallet-addr').innerText = `${walletAccount.slice(0,6)}...${walletAccount.slice(-4)}`;
                     document.getElementById('btn-submit-post').removeAttribute('disabled');
-                    document.getElementById('status-log').innerText = "System: Wallet Active";
+                    document.getElementById('status-log').innerText = "System: Slush Connected";
                     
-                    // Fetch real balance metrics via Tatum RPC Node infrastructure maps
-                    const res = await fetch(CONFIG.TATUM_RPC, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-api-key': CONFIG.TATUM_KEY },
-                        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "suix_getBalance", params: [walletAccount] })
-                    });
-                    const balData = await res.json();
-                    if (balData.result && balData.result.totalBalance) {
-                        const suiBal = (balData.result.totalBalance / 1000000000).toFixed(2);
-                        document.getElementById('wallet-bal').innerHTML = `${suiBal} <span>SUI</span>`;
-                    }
-                } catch (err) {
-                    document.getElementById('status-log').innerText = `System: Connection Aborted`;
