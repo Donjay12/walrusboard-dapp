@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WalrusBoard — Decentralized Production Engine</title>
-    <!-- Include Sui Wallet Standard Adapter via unpkg for single-file runtime execution -->
+    <title>WalrusBoard — Decentralized Social on Sui</title>
+    <!-- Include Sui Wallet Standard Adapter Framework via unpkg -->
     <script src="https://unpkg.com"></script>
+    <link rel="preconnect" href="https://googleapis.com">
+    <link href="https://googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
     <style>
       :root {
         --bg: #0a0c0f;
@@ -20,18 +22,13 @@
         --accent: #4f9eff;
         --accent2: #2d7de0;
         --walrus: #00e5c8;
-        --walrus2: #00b8a0;
         --sui: #4da2ff;
         --tatum: #a78bfa;
-        --tatum2: #7c5cbf;
         --success: #34d399;
-        --warn: #fbbf24;
-        --danger: #f87171;
         --mono: 'Space Mono', monospace;
         --sans: 'DM Sans', sans-serif;
         --r: 8px;
         --r2: 12px;
-        --r3: 16px;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
@@ -41,9 +38,25 @@
         font-size: 15px;
         line-height: 1.6;
         min-height: 100vh;
+        overflow-x: hidden;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(79,158,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(79,158,255,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
       }
       nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
         background: rgba(10,12,15,0.9);
+        backdrop-filter: blur(16px);
         border-bottom: 1px solid var(--border);
         padding: 0 2rem;
         display: flex;
@@ -51,7 +64,31 @@
         justify-content: space-between;
         height: 56px;
       }
+      .logo {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .logo-icon {
+        width: 28px; height: 28px;
+        background: linear-gradient(135deg, var(--walrus), var(--accent));
+        border-radius: 6px;
+      }
+      .nav-badges { display: flex; gap: 8px; }
+      .badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 20px;
+      }
+      .badge-walrus { background: rgba(0,229,200,0.1); color: var(--walrus); border: 1px solid rgba(0,229,200,0.2); }
+      .badge-tatum { background: rgba(167,139,250,0.1); color: var(--tatum); border: 1px solid rgba(167,139,250,0.2); }
       .app {
+        position: relative;
+        z-index: 1;
         display: grid;
         grid-template-columns: 260px 1fr;
         min-height: calc(100vh - 56px);
@@ -76,14 +113,15 @@
       .wallet-balance {
         font-size: 22px;
         font-weight: 700;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
-      .main { padding: 2rem; }
+      .wallet-balance span { font-size: 13px; color: var(--text2); }
+      .main { padding: 1.5rem; }
       .compose-box {
         background: var(--bg2);
         border: 1px solid var(--border);
         border-radius: var(--r2);
-        padding: 1.5rem;
+        padding: 1rem;
       }
       .compose-textarea {
         width: 100%;
@@ -93,25 +131,51 @@
         color: var(--text);
         font-size: 15px;
         resize: none;
-        min-height: 100px;
+        min-height: 80px;
+      }
+      .compose-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
       }
       .btn-post {
         background: var(--accent);
         color: white;
         border: none;
-        padding: 10px 20px;
+        padding: 8px 18px;
         border-radius: var(--r);
         cursor: pointer;
         font-weight: 500;
+        transition: background 0.15s;
       }
+      .btn-post:hover { background: var(--accent2); }
       .btn-post:disabled { opacity: 0.5; cursor: not-allowed; }
-      .storage-selector { margin: 15px 0; }
+      .storage-opt {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: var(--mono);
+        color: var(--text2);
+        display: inline-block;
+        margin-top: 10px;
+      }
+      .char-count { font-family: var(--mono); font-size: 11px; color: var(--text3); }
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="logo">WalrusBoard</div>
+        <div class="logo"><div class="logo-icon"></div>WalrusBoard</div>
+        <div class="nav-badges">
+            <span class="badge badge-walrus">WALRUS SECURED</span>
+            <span class="badge badge-tatum">TATUM RPC</span>
+        </div>
     </nav>
 
     <div class="app">
@@ -128,12 +192,12 @@
                 <textarea id="post-text" class="compose-textarea" placeholder="What's happening in the decentralized world?"></textarea>
                 <input type="file" id="media-upload" style="display: none;" />
                 
-                <div class="storage-selector">
-                    <button type="button" id="trigger-file-select" class="btn-post" style="background:var(--bg3); color:var(--text2);">📎 Attach Media Asset</button>
+                <div>
+                    <div class="storage-opt" id="trigger-file-select">📎 Attach Media Asset</div>
                 </div>
 
-                <div style="display:flex; justify-content:between; align-items:center; margin-top:20px;">
-                    <span id="status-log" style="font-family:var(--mono); font-size:12px; color:var(--text3);">System: Ready</span>
+                <div class="compose-footer">
+                    <span class="char-count" id="status-log">System: Ready</span>
                     <button id="btn-submit-post" class="btn-post" disabled>Publish to Mainnet</button>
                 </div>
             </div>
@@ -141,11 +205,12 @@
     </div>
 
     <script>
+        // Config Map Orchestrator binding backend parameters directly to UI pipelines
         const CONFIG = {
             TATUM_RPC: "https://tatum.io", 
             TATUM_KEY: "t-6a228ba6cdca2ce164fe3516-29b78c633b8c45008f38baff", 
             WALRUS_PUBLISHER: "https://walrus.space",
-            PACKAGE_ID: "YOUR_DEPLOYED_PACKAGE_ID",
+            PACKAGE_ID: "0x53a152fb6a19280d9db81d6f47f20108398e6c7104ea20299837c7bd9676ec4f", // Testnet baseline contract mapping
             MODULE_NAME: "social",
             FUNCTION_NAME: "create_post"
         };
@@ -158,27 +223,42 @@
         });
 
         document.getElementById('media-upload').addEventListener('change', (e) => {
-            selectedFile = e.target.files[0];
-            document.getElementById('status-log').innerText = `System: Asset Attached - ${selectedFile.name}`;
+            if(e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                document.getElementById('status-log').innerText = `System: Asset - ${selectedFile.name}`;
+            }
         });
 
+        // Interactive wallet connector routing queries through Tatum Node APIs
         document.getElementById('btn-connect').addEventListener('click', async () => {
             if (window.suiWallet) {
                 try {
-                    const accounts = await window.suiWallet.requestPermissions();
+                    await window.suiWallet.requestPermissions();
                     const currentAccounts = await window.suiWallet.getAccounts();
                     walletAccount = currentAccounts[0];
-                    document.getElementById('wallet-addr').innerText = walletAccount;
+                    
+                    document.getElementById('wallet-addr').innerText = `${walletAccount.slice(0,6)}...${walletAccount.slice(-4)}`;
                     document.getElementById('btn-submit-post').removeAttribute('disabled');
                     document.getElementById('status-log').innerText = "System: Wallet Connected";
+                    
+                    // Fetch real balance metrics via Tatum RPC Node infrastructure maps
+                    const res = await fetch(CONFIG.TATUM_RPC, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-api-key': CONFIG.TATUM_KEY },
+                        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "suix_getBalance", params: [walletAccount] })
+                    });
+                    const balData = await res.json();
+                    const suiBal = (balData.result.totalBalance / 1000000000).toFixed(2);
+                    document.getElementById('wallet-bal').innerHTML = `${suiBal} <span>SUI</span>`;
                 } catch (err) {
                     document.getElementById('status-log').innerText = `System: Connection Error`;
                 }
             } else {
-                alert("Sui Wallet extension not detected!");
+                alert("Sui Wallet extension not detected! Please open inside an extension-enabled browser.");
             }
         });
 
+        // Combined data dispatch handler pushing binaries to Walrus and records via Tatum
         document.getElementById('btn-submit-post').addEventListener('click', async () => {
             const textContent = document.getElementById('post-text').value;
             if (!textContent && !selectedFile) return;
@@ -186,27 +266,3 @@
             try {
                 let generatedBlobId = "0x0000000000000000000000000000000000000000000000000000000000000000";
                 
-                if (selectedFile) {
-                    document.getElementById('status-log').innerText = "System: Uploading to Walrus...";
-                    const walrusResponse = await fetch(`${CONFIG.WALRUS_PUBLISHER}/v1/store?epochs=5`, {
-                        method: 'PUT',
-                        body: selectedFile
-                    });
-                    const walrusData = await walrusResponse.json();
-                    if (walrusData.newlyCreated) {
-                        generatedBlobId = walrusData.newlyCreated.blobObject.blobId;
-                    } else if (walrusData.alreadyCertified) {
-                        generatedBlobId = walrusData.alreadyCertified.blobId;
-                    }
-                }
-
-                document.getElementById('status-log').innerText = "System: Confirm transaction in wallet...";
-                // Transaction logic hooks here
-                alert(`Asset secured on Walrus Storage! Blob ID: ${generatedBlobId}`);
-            } catch (err) {
-                alert(`Error processing pipeline: ${err.message}`);
-            }
-        });
-    </script>
-</body>
-</html>
