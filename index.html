@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WalrusBoard — Decentralized Social on Sui</title>
-    <!-- Official Mysten Labs SDK Library -->
+    <!-- Core SDK Library Package -->
     <script src="https://unpkg.com"></script>
     <link rel="preconnect" href="https://googleapis.com">
     <link href="https://googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
@@ -205,69 +205,69 @@
     </div>
 
     <script>
-        const CONFIG = {
-            TATUM_RPC: "https://tatum.io", 
-            TATUM_KEY: "t-6a228ba6cdca2ce164fe3516-29b78c633b8c45008f38baff", 
-            WALRUS_PUBLISHER: "https://walrus.space",
-            PACKAGE_ID: "0x53a152fb6a19280d9db81d6f47f20108398e6c7104ea20299837c7bd9676ec4f", 
-            MODULE_NAME: "social",
-            FUNCTION_NAME: "create_post"
-        };
-
-        let currentWalletFeatureInstance = null;
-        let walletAccount = null;
-        let selectedFile = null;
-
-        document.getElementById('trigger-file-select').addEventListener('click', () => {
-            document.getElementById('media-upload').click();
+        // FIXED: Enforce window load event to ensure the Sui SDK libraries complete initialization
+        window.addEventListener('load', () => {
+            console.log("Application initialization complete.");
+            initAppLogic();
         });
 
-        document.getElementById('media-upload').addEventListener('change', (e) => {
-            if(e.target.files.length > 0) {
-                selectedFile = e.target.files;
-                document.getElementById('status-log').innerText = `System: Asset - ${selectedFile.name}`;
-            }
-        });
+        function initAppLogic() {
+            const CONFIG = {
+                TATUM_RPC: "https://tatum.io", 
+                TATUM_KEY: "t-6a228ba6cdca2ce164fe3516-29b78c633b8c45008f38baff", 
+                WALRUS_PUBLISHER: "https://walrus.space",
+                PACKAGE_ID: "0x53a152fb6a19280d9db81d6f47f20108398e6c7104ea20299837c7bd9676ec4f", 
+                MODULE_NAME: "social",
+                FUNCTION_NAME: "create_post"
+            };
 
-        // ADVANCED EVENT-DRIVEN DETECTION FOR EXTENSIONS
-        function scanForSuiStandardWallets() {
-            // Check traditional endpoints
-            if (window.suiWallet || window.slushWallet) {
-                return window.suiWallet || window.slushWallet;
-            }
-            // Fallback scan loop for the modern dynamic registry list
-            if (window.__suiWallets && typeof window.__suiWallets.get === 'function') {
-                const registered = window.__suiWallets.get();
-                if (registered && registered.length > 0) {
-                    // Grab the first registered extension (Slush)
-                    return registered[0];
+            let chosenWalletInstance = null;
+            let walletAccount = null;
+            let selectedFile = null;
+
+            document.getElementById('trigger-file-select').addEventListener('click', () => {
+                document.getElementById('media-upload').click();
+            });
+
+            document.getElementById('media-upload').addEventListener('change', (e) => {
+                if(e.target.files.length > 0) {
+                    selectedFile = e.target.files[0]; // FIXED: Extract file target object correctly
+                    document.getElementById('status-log').innerText = `System: Asset - ${selectedFile.name}`;
                 }
-            }
-            return null;
-        }
+            });
 
-        // Listen live for the register event triggered by Slush loading
-        window.addEventListener('sui-wallet-standard:register-wallet', () => {
-            console.log("Sui Wallet Standard Event Captured.");
-            document.getElementById('status-log').innerText = "System: Slush Detected!";
-        });
-
-        document.getElementById('btn-connect').addEventListener('click', async () => {
-            currentWalletFeatureInstance = scanForSuiStandardWallets();
-            
-            if (currentWalletFeatureInstance) {
-                try {
-                    document.getElementById('status-log').innerText = "System: Triggering Pop-up Prompt...";
-                    
-                    let accounts = [];
-                    // Execute standard connection handshake method definition loops
-                    if (typeof currentWalletFeatureInstance.connect === 'function') {
-                        const connectionResult = await currentWalletFeatureInstance.connect();
-                        accounts = connectionResult.accounts || connectionResult;
-                    } else if (typeof currentWalletFeatureInstance.requestPermissions === 'function') {
-                        await currentWalletFeatureInstance.requestPermissions();
-                        accounts = await currentWalletFeatureInstance.getAccounts();
+            // FIXED: Fallback scanning sequence to extract standard extension wrappers safely
+            function locateStandardWallet() {
+                if (window.suiWallet) return window.suiWallet;
+                if (window.slushWallet) return window.slushWallet;
+                
+                if (window.__suiWallets && typeof window.__suiWallets.get === 'function') {
+                    const walletList = window.__suiWallets.get();
+                    if(walletList && walletList.length > 0) {
+                        return walletList[0]; 
                     }
+                }
+                return null;
+            }
 
-                    // Normalize data matching string profiles
-                    const targetedDataArray = Array.isArray(accounts) ? accounts[0] : accounts;
+            document.getElementById('btn-connect').addEventListener('click', async () => {
+                chosenWalletInstance = locateStandardWallet();
+                
+                if (chosenWalletInstance) {
+                    try {
+                        document.getElementById('status-log').innerText = "System: Requesting Pop-up Prompt...";
+                        
+                        let accounts = [];
+                        // Trigger standard connection handshakes seamlessly
+                        if (typeof chosenWalletInstance.connect === 'function') {
+                            const connectionResult = await chosenWalletInstance.connect();
+                            accounts = connectionResult.accounts || connectionResult;
+                        } else if (typeof chosenWalletInstance.requestPermissions === 'function') {
+                            await chosenWalletInstance.requestPermissions();
+                            accounts = await chosenWalletInstance.getAccounts();
+                        }
+
+                        // Parse the account address out safely
+                        const targetedAccount = Array.isArray(accounts) ? accounts[0] : accounts;
+                        walletAccount = targetedAccount?.address || targetedAccount;
+
